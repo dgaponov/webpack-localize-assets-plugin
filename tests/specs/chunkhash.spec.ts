@@ -8,7 +8,7 @@ export default testSuite(({ describe }) => {
 	describe('chunkhash', ({ test }) => {
 		test('single locale', async () => {
 			const volume = {
-				'/src/index.js': 'export default __("hello-key");',
+				'/src/index.js': 'import i18n from "./i18n"; const i18nK = i18n.bind(null, "ahahha"); const i18nSomeKeyset = i18n.bind(null, "SomeKeyset"); console.log(i18nSomeKeyset("some_key")); export default i18nK("hello-key");',
 			};
 
 			const builtA = await build(
@@ -20,6 +20,17 @@ export default testSuite(({ describe }) => {
 					config.plugins!.push(
 						new WebpackLocalizeAssetsPlugin({
 							locales: localesSingle,
+							localizeCompiler: new Proxy({ PLACEHOLDER_FN: () => '' }, {
+								get(_, functionName) {
+									console.log('functionName', functionName);
+
+									return (callArguments, locale) => {
+										console.log(callArguments, 'args');
+										console.log('locale', locale);
+										return 'yes';
+									};
+								},
+							}),
 						}),
 					);
 				},
@@ -59,7 +70,7 @@ export default testSuite(({ describe }) => {
 
 		test('multi locale', async () => {
 			const volume = {
-				'/src/index.js': 'export default __("hello-key");',
+				'/src/index.js': 'const i18n = (yes) => ""; const i18nKK = i18n.bind("ahahha"); export default i18nKK("hello-key");',
 			};
 
 			const builtA = await build(
@@ -77,6 +88,7 @@ export default testSuite(({ describe }) => {
 			);
 
 			const assetFilenameA = Object.keys(builtA.stats.compilation.assets)[0];
+			console.log(builtA.stats.compilation.assets, 'qq');
 
 			const enBuildA = builtA.require(`/dist/${assetFilenameA}`);
 			expect(enBuildA).toBe('Hello');

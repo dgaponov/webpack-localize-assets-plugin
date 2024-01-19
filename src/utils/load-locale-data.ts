@@ -6,6 +6,7 @@ import type {
 	UnprocessedLocalesMap,
 	LocaleName,
 	LocalesMap,
+	LocalizedKeysetsMap,
 	LocaleFilePath,
 } from '../types-internal.js';
 
@@ -23,7 +24,7 @@ const readJsonFile = (
 
 export type LocaleData = {
 	names: LocaleName[];
-	data: LocalesMap;
+	data: LocalesMap | LocalizedKeysetsMap;
 	paths: Set<LocaleFilePath>;
 };
 

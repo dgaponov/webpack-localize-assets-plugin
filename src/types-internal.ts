@@ -24,6 +24,7 @@ export function validateOptions<LocalizedData>(options: Options<LocalizedData>):
 		throw new Error('sourceMapForLocales must contain valid locales');
 	}
 	if (options.localizeCompiler) {
+		console.log('ahahha');
 		if (Object.keys(options.localizeCompiler).length === 0) {
 			throw new Error('localizeCompiler can\'t be an empty object');
 		}
@@ -40,7 +41,8 @@ export type Compilation = WP5.Compilation | WP4.compilation.Compilation;
 export type NormalModuleFactory = Parameters<WP5.Compiler['newCompilation']>[0]['normalModuleFactory'];
 export type Module = WP4.compilation.Module | WP5.Module;
 
-export type LocalesMap<LocalizedData = string> = Record<LocaleName, LocaleStrings<LocalizedData>>;
+export type LocalesMap<LocalizedData = string | Record<string, string>>
+	= Record<LocaleName, LocaleStrings<LocalizedData>>;
 
 export type Location = {
 	start: number;

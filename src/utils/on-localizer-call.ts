@@ -18,6 +18,7 @@ export type StringKeyHit = {
 	key: string;
 	callNode: SimpleCallExpression;
 	module: WP5.NormalModule;
+	keyset?: string;
 };
 
 type onLocalizerCallCallback = (stringKeyHit: StringKeyHit) => string | undefined;
@@ -30,7 +31,7 @@ export const onLocalizerCall = (
 	onFunctionCall(
 		normalModuleFactory,
 		functionNames,
-		(functionName, parser, callNode) => {
+		(functionName, parser, callNode, keyset) => {
 			const { module } = parser.state;
 			const firstArgument = callNode.arguments[0];
 
@@ -54,6 +55,7 @@ export const onLocalizerCall = (
 				key: firstArgument.value,
 				callNode,
 				module,
+				keyset,
 			});
 
 			if (replacement) {

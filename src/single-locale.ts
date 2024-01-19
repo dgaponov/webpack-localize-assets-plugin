@@ -26,6 +26,7 @@ export const handleSingleLocaleLocalization = (
 	localizeCompiler: LocalizeCompiler,
 	functionNames: string[],
 	trackUsedKeys?: Set<string>,
+	useKeysets?: boolean,
 ) => {
 	const [localeName] = locales.names;
 
@@ -35,14 +36,23 @@ export const handleSingleLocaleLocalization = (
 		onStringKey(
 			locales,
 			options,
-			({ key, callNode, module }) => {
-				trackUsedKeys?.delete(key);
+			({
+				key, callNode, module, keyset,
+			}) => {
+				const fullKey = useKeysets && keyset ? `${keyset}:${key}` : key;
+				trackUsedKeys?.delete(fullKey);
+				console.log('tut dernuli', fullKey);
 
 				return callLocalizeCompiler(
 					localizeCompiler,
 					{
 						callNode,
-						resolveKey: (stringKey = key) => locales.data[localeName][stringKey],
+						resolveKey: (stringKey = key) => {
+							if (useKeysets && keyset) {
+								return locales.data[localeName][keyset][stringKey];
+							}
+							return locales.data[localeName][stringKey];
+						},
 						emitWarning: message => reportModuleWarning(
 							module,
 							new WebpackError(message),

@@ -1,6 +1,8 @@
 import webpack from 'webpack';
+import * as walk from 'acorn-walk';
+import * as acorn from 'acorn';
 import type WebpackError from 'webpack/lib/WebpackError.js';
-import type { SimpleCallExpression } from 'estree';
+import type { CallExpression, Expression, SimpleCallExpression } from 'estree';
 import {
 	Webpack,
 	Compilation,
@@ -23,6 +25,12 @@ export const { toConstantDependency } = (
 	isWebpack5(webpack)
 		? require('webpack/lib/javascript/JavascriptParserHelpers') // eslint-disable-line node/global-require,import/no-unresolved
 		: require('webpack/lib/ParserHelpers') // eslint-disable-line node/global-require
+);
+
+export const { BasicEvaluatedExpression } = (
+	isWebpack5(webpack)
+		? require('webpack/lib/javascript/BasicEvaluatedExpression') // eslint-disable-line node/global-require,import/no-unresolved
+		: require('webpack/lib/BasicEvaluatedExpression') // eslint-disable-line node/global-require
 );
 
 export const deleteAsset = (
@@ -104,6 +112,16 @@ export const reportModuleError = (
 	}
 };
 
+const isI18nBind = (expr: Expression): expr is CallExpression => expr.type === 'CallExpression' && expr.callee.type === 'MemberExpression' && expr.callee.object.type === 'Identifier' && expr.callee.object.name === 'i18n';
+
+const getKeysetNameFromBind = (expr: CallExpression) => {
+	if (expr.arguments.length === 2 && expr.arguments[1].type === 'Literal' && typeof expr.arguments[1].value === 'string') {
+		return expr.arguments[1].value;
+	}
+
+	throw new Error('Incorrect args count');
+};
+
 export const onFunctionCall = (
 	normalModuleFactory: NormalModuleFactory,
 	functionNames: string[],
@@ -111,32 +129,50 @@ export const onFunctionCall = (
 		functionName: string,
 		parser: WP5.javascript.JavascriptParser,
 		node: SimpleCallExpression,
+		keyset?: string,
 	) => void,
 ) => {
-	for (const functionName of functionNames) {
-		const handler = (parser: WP5.javascript.JavascriptParser) => {
-			parser.hooks.call
-				.for(functionName)
-				.tap(
-					name,
-					node => callback(
-						functionName,
-						parser,
-						node as SimpleCallExpression,
-					),
-				);
-		};
+	const findFunctionsHandler = (parser: WP5.javascript.JavascriptParser) => {
+		const functionToKeyset: Record<string, string> = {};
 
-		normalModuleFactory.hooks.parser
-			.for('javascript/auto')
-			.tap(name, handler);
-		normalModuleFactory.hooks.parser
-			.for('javascript/dynamic')
-			.tap(name, handler);
-		normalModuleFactory.hooks.parser
-			.for('javascript/esm')
-			.tap(name, handler);
-	}
+		parser.hooks.program.tap(name, (ast) => {
+			walk.simple(ast as unknown as acorn.Node, {
+				VariableDeclaration: (node) => {
+					if (node.type === 'VariableDeclaration' && node.declarations.length === 1 && node.declarations[0].id.type === 'Identifier' && node.declarations[0].id.name.startsWith('i18n') && node.declarations[0].init && isI18nBind(node.declarations[0].init)) {
+						const functionName_ = node.declarations[0].id.name;
+						const keyset = getKeysetNameFromBind(node.declarations[0].init);
+						functionToKeyset[functionName_] = keyset;
+					}
+				},
+			});
+
+			walk.simple(ast as unknown as acorn.Node, {
+				Expression: (node) => {
+					if (node.type === 'CallExpression' && node.callee.type === 'Identifier' && functionToKeyset[node.callee.name]) {
+						const keyset = functionToKeyset[node.callee.name];
+						const key = node.arguments[0].value;
+						console.log('call', `${keyset}:${key}`);
+						callback(
+							node.callee.name,
+							parser,
+							node as SimpleCallExpression,
+							keyset,
+						);
+					}
+				},
+			});
+		});
+	};
+
+	normalModuleFactory.hooks.parser
+		.for('javascript/auto')
+		.tap(name, findFunctionsHandler);
+	normalModuleFactory.hooks.parser
+		.for('javascript/dynamic')
+		.tap(name, findFunctionsHandler);
+	normalModuleFactory.hooks.parser
+		.for('javascript/esm')
+		.tap(name, findFunctionsHandler);
 };
 
 export const onAssetPath = (

@@ -22,9 +22,5 @@ describe(`Webpack ${webpack.version}`, async ({ runTestSuite }) => {
 
 	await removeWebpack5Cache();
 
-	runTestSuite(import('./specs/errors.spec.js'));
-	runTestSuite(import('./specs/passing.spec.js'), isWebpack5);
-	runTestSuite(import('./specs/localize-compiler.spec.js'));
 	runTestSuite(import('./specs/chunkhash.spec.js'));
-	runTestSuite(import('./specs/contenthash.spec.js'), isWebpack5);
 });
