@@ -50,13 +50,13 @@ export const onLocalizerCall = (
 				);
 				return;
 			}
-
 			const replacement = callback({
 				key: firstArgument.value,
 				callNode,
 				module,
 				keyset,
 			});
+			console.log('replacement', replacement);
 
 			if (replacement) {
 				toConstantDependency(parser, replacement)(callNode);

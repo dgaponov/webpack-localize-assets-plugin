@@ -21,7 +21,7 @@ export const isWebpack5Compilation = (
 	compilation: Compilation,
 ): compilation is WP5.Compilation => ('processAssets' in compilation.hooks);
 
-export const { toConstantDependency } = (
+export const { toConstantDependency, ConstDependency } = (
 	isWebpack5(webpack)
 		? require('webpack/lib/javascript/JavascriptParserHelpers') // eslint-disable-line node/global-require,import/no-unresolved
 		: require('webpack/lib/ParserHelpers') // eslint-disable-line node/global-require

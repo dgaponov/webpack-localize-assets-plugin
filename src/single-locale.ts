@@ -41,7 +41,6 @@ export const handleSingleLocaleLocalization = (
 			}) => {
 				const fullKey = useKeysets && keyset ? `${keyset}:${key}` : key;
 				trackUsedKeys?.delete(fullKey);
-				console.log('tut dernuli', fullKey);
 
 				return callLocalizeCompiler(
 					localizeCompiler,

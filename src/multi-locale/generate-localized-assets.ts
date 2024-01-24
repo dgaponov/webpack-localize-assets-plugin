@@ -86,6 +86,7 @@ export const generateLocalizedAssets = (
 
 		if (isJsFile.test(asset.name)) {
 			const code = source.toString();
+			console.log(code);
 			const insertLocalizedStrings = createLocalizedStringInserter(
 				code,
 				compilation,
