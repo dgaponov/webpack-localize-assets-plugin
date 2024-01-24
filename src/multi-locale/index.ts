@@ -3,6 +3,7 @@ import type {
 	WP5,
 	LocalizeCompiler,
 	Options,
+	FunctionNamesOrResolver,
 } from '../types-internal.js';
 import type { LocaleData } from '../utils/load-locale-data.js';
 import {
@@ -22,12 +23,12 @@ export const handleMultiLocaleLocalization = (
 	options: Options,
 	locales: LocaleData,
 	localizeCompiler: LocalizeCompiler,
-	functionNames: string[],
+	functionNamesOrResolver: FunctionNamesOrResolver,
 	trackUsedKeys?: Set<string>,
 ) => {
 	onLocalizerCall(
 		normalModuleFactory,
-		functionNames,
+		functionNamesOrResolver,
 		onStringKey(
 			locales,
 			options,

@@ -16,7 +16,9 @@ import type {
 	LocalizeCompiler,
 	WP5,
 	NormalModuleFactory,
+	FunctionNamesOrResolver,
 } from './types-internal.js';
+import { encodeNamespaceKey } from './utils/namespaces.js';
 
 export const handleSingleLocaleLocalization = (
 	compilation: WP5.Compilation,
@@ -24,25 +26,28 @@ export const handleSingleLocaleLocalization = (
 	options: Options,
 	locales: LocaleData,
 	localizeCompiler: LocalizeCompiler,
-	functionNames: string[],
+	functionNamesOrResolver: FunctionNamesOrResolver,
 	trackUsedKeys?: Set<string>,
 ) => {
 	const [localeName] = locales.names;
 
 	onLocalizerCall(
 		normalModuleFactory,
-		functionNames,
+		functionNamesOrResolver,
 		onStringKey(
 			locales,
 			options,
-			({ key, callNode, module }) => {
-				trackUsedKeys?.delete(key);
+			({
+				key, callNode, module, namespace,
+			}) => {
+				const fullKey = encodeNamespaceKey({ key, namespace });
+				trackUsedKeys?.delete(fullKey);
 
 				return callLocalizeCompiler(
 					localizeCompiler,
 					{
 						callNode,
-						resolveKey: (stringKey = key) => locales.data[localeName][stringKey],
+						resolveKey: (stringKey = fullKey) => locales.data[localeName][stringKey],
 						emitWarning: message => reportModuleWarning(
 							module,
 							new WebpackError(message),
@@ -53,6 +58,7 @@ export const handleSingleLocaleLocalization = (
 						),
 					},
 					localeName,
+					namespace,
 				);
 			},
 		),

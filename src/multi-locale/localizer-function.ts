@@ -16,6 +16,7 @@ import type {
 } from '../types-internal.js';
 import { pushUniqueError } from '../utils/webpack.js';
 import { callLocalizeCompiler } from '../utils/call-localize-compiler.js';
+import { encodeNamespaceKey, parseNamespaceKey } from '../utils/namespaces.js';
 
 const placeholderFunctionName = `_placeholder${sha256(name).slice(0, 8)}`;
 
@@ -29,17 +30,26 @@ const placeholderFunctionName = `_placeholder${sha256(name).slice(0, 8)}`;
  */
 export const insertPlaceholderFunction = (
 	locales: LocaleData,
-	{ module, key, callNode }: StringKeyHit,
+	{
+		module, key, callNode, namespace,
+	}: StringKeyHit,
 ) : string => {
+	const fullKey = encodeNamespaceKey({ key, namespace });
+
 	// Track used keys for hash
 	if (!module.buildInfo.localized) {
 		module.buildInfo.localized = {};
 	}
 
-	if (!module.buildInfo.localized[key]) {
-		module.buildInfo.localized[key] = locales.names.map(
-			locale => locales.data[locale][key],
+	if (!module.buildInfo.localized[fullKey]) {
+		module.buildInfo.localized[fullKey] = locales.names.map(
+			locale => locales.data[locale][fullKey],
 		);
+	}
+
+	if (namespace && callNode.arguments[0].type === 'Literal') {
+		callNode.arguments[0].value = fullKey;
+		callNode.arguments[0].raw = `'${fullKey}'`;
 	}
 
 	const callExpression = stringifyAstNode(callNode);
@@ -128,7 +138,9 @@ export const createLocalizedStringInserter = (
 			}
 
 			const callNode = parseCallExpression(code);
-			const stringKey = (callNode.arguments[0] as Literal).value as string;
+			const fullKey = (callNode.arguments[0] as Literal).value as string;
+			const { key: stringKey, namespace } = parseNamespaceKey(fullKey);
+
 			let localizedString = callLocalizeCompiler(
 				localizeCompiler,
 				{
@@ -148,6 +160,7 @@ export const createLocalizedStringInserter = (
 					},
 				},
 				locale,
+				namespace,
 			);
 
 			if (isDevtoolEval) {

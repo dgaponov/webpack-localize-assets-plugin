@@ -5,6 +5,7 @@ import {
 	WP5,
 	NormalModuleFactory,
 	Options,
+	FunctionNamesOrResolver,
 } from '../types-internal.js';
 import {
 	toConstantDependency,
@@ -16,6 +17,7 @@ import { localizedStringKeyValidator } from './localized-string-key-validator.js
 
 export type StringKeyHit = {
 	key: string;
+	namespace?: string;
 	callNode: SimpleCallExpression;
 	module: WP5.NormalModule;
 };
@@ -24,13 +26,13 @@ type onLocalizerCallCallback = (stringKeyHit: StringKeyHit) => string | undefine
 
 export const onLocalizerCall = (
 	normalModuleFactory: NormalModuleFactory,
-	functionNames: string[],
+	functionNamesOrResolver: FunctionNamesOrResolver,
 	callback: onLocalizerCallCallback,
 ) => {
 	onFunctionCall(
 		normalModuleFactory,
-		functionNames,
-		(functionName, parser, callNode) => {
+		functionNamesOrResolver,
+		(functionName, parser, callNode, namespace) => {
 			const { module } = parser.state;
 			const firstArgument = callNode.arguments[0];
 
@@ -52,6 +54,7 @@ export const onLocalizerCall = (
 
 			const replacement = callback({
 				key: firstArgument.value,
+				namespace,
 				callNode,
 				module,
 			});
@@ -72,8 +75,12 @@ export const onStringKey = (
 	const assertKeyExists = localizedStringKeyValidator(locales, options.throwOnMissing);
 
 	return (stringKeyHit) => {
+		const fullKey = stringKeyHit.namespace
+			? `${stringKeyHit.namespace}:${stringKeyHit.key}`
+			: stringKeyHit.key;
+
 		assertKeyExists(
-			stringKeyHit.key,
+			fullKey,
 			stringKeyHit.module,
 			stringKeyHit.callNode,
 		);

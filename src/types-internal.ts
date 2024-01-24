@@ -24,7 +24,7 @@ export function validateOptions<LocalizedData>(options: Options<LocalizedData>):
 		throw new Error('sourceMapForLocales must contain valid locales');
 	}
 	if (options.localizeCompiler) {
-		if (Object.keys(options.localizeCompiler).length === 0) {
+		if (!options.functionResolver && Object.keys(options.localizeCompiler).length === 0) {
 			throw new Error('localizeCompiler can\'t be an empty object');
 		}
 		if (options.functionName) {

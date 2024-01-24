@@ -1,12 +1,15 @@
 import webpack from 'webpack';
 import type WebpackError from 'webpack/lib/WebpackError.js';
-import type { SimpleCallExpression } from 'estree';
+import * as walk from 'acorn-walk';
+import * as acorn from 'acorn';
+import type { SimpleCallExpression, VariableDeclaration } from 'estree';
 import {
 	Webpack,
 	Compilation,
 	WP5,
 	NormalModuleFactory,
 	Module,
+	FunctionNamesOrResolver,
 } from '../types-internal.js';
 import { name } from '../../package.json';
 
@@ -106,37 +109,59 @@ export const reportModuleError = (
 
 export const onFunctionCall = (
 	normalModuleFactory: NormalModuleFactory,
-	functionNames: string[],
+	functionNamesOrResolver: FunctionNamesOrResolver,
 	callback: (
 		functionName: string,
 		parser: WP5.javascript.JavascriptParser,
 		node: SimpleCallExpression,
+		namespace?: string,
 	) => void,
 ) => {
-	for (const functionName of functionNames) {
-		const handler = (parser: WP5.javascript.JavascriptParser) => {
-			parser.hooks.call
-				.for(functionName)
-				.tap(
-					name,
-					node => callback(
-						functionName,
-						parser,
-						node as SimpleCallExpression,
-					),
-				);
-		};
+	const handler = (parser: WP5.javascript.JavascriptParser) => {
+		const functionToNamespace: Record<string, string | undefined> = {};
+		if (Array.isArray(functionNamesOrResolver)) {
+			functionNamesOrResolver.forEach((functionName) => {
+				functionToNamespace[functionName] = undefined;
+			});
+		}
 
-		normalModuleFactory.hooks.parser
-			.for('javascript/auto')
-			.tap(name, handler);
-		normalModuleFactory.hooks.parser
-			.for('javascript/dynamic')
-			.tap(name, handler);
-		normalModuleFactory.hooks.parser
-			.for('javascript/esm')
-			.tap(name, handler);
-	}
+		parser.hooks.program.tap(name, (ast) => {
+			if (typeof functionNamesOrResolver === 'function') {
+				walk.simple(ast as unknown as acorn.Node, {
+					VariableDeclaration: (node) => {
+						const result = functionNamesOrResolver(node as VariableDeclaration);
+
+						if (result) {
+							functionToNamespace[result.functionName] = result.namespace;
+						}
+					},
+				});
+			}
+
+			walk.simple(ast as unknown as acorn.Node, {
+				CallExpression: (node) => {
+					if (node.callee.type === 'Identifier' && node.callee.name in functionToNamespace) {
+						callback(
+							node.callee.name,
+							parser,
+							node as SimpleCallExpression,
+							functionToNamespace[node.callee.name],
+						);
+					}
+				},
+			});
+		});
+	};
+
+	normalModuleFactory.hooks.parser
+		.for('javascript/auto')
+		.tap(name, handler);
+	normalModuleFactory.hooks.parser
+		.for('javascript/dynamic')
+		.tap(name, handler);
+	normalModuleFactory.hooks.parser
+		.for('javascript/esm')
+		.tap(name, handler);
 };
 
 export const onAssetPath = (

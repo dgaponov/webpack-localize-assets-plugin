@@ -54,7 +54,7 @@ class LocalizeAssetsPlugin {
 			name,
 			(compilation, { normalModuleFactory }) => {
 				const locales = loadLocaleData(compiler, options.locales);
-				const functionNames = Object.keys(localizeCompiler);
+				const functionNames = options.functionResolver ?? Object.keys(localizeCompiler);
 				const trackUsedKeys = (
 					options.warnOnUnusedString
 						? warnOnUnusedKeys(compilation, locales.data)
