@@ -10,5 +10,7 @@ export function callLocalizeCompiler<LocalizedData>(
 ) {
 	const callNodeArguments = context.callNode.arguments.map(stringifyAstNode);
 	const functionName = (context.callNode.callee as Identifier).name;
-	return localizeCompiler[functionName].call(context, callNodeArguments, localeName, namespace);
+
+	const functionToCall = typeof localizeCompiler === 'function' ? localizeCompiler : localizeCompiler[functionName];
+	return functionToCall.call(context, callNodeArguments, localeName, namespace);
 }

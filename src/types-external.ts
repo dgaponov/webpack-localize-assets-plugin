@@ -1,4 +1,4 @@
-import type { SimpleCallExpression, VariableDeclaration } from 'estree';
+import type { SimpleCallExpression, VariableDeclarator } from 'estree';
 
 export type LocaleName = string;
 export type LocaleFilePath = string;
@@ -9,7 +9,7 @@ export type UnprocessedLocalesMap<LocalizedData = string> = Record<
 	LocaleFilePath | LocaleStrings<LocalizedData>
 >;
 
-export type FunctionResolver = (node: VariableDeclaration) => {
+export type FunctionResolver = (node: VariableDeclarator) => {
 	functionName: string;
 	namespace?: string;
 } | undefined;
@@ -37,11 +37,13 @@ export interface LocalizeCompilerContext<LocalizedData = string> {
 	emitError(message: string): void;
 }
 
-export interface LocalizeCompiler<LocalizedData = string> {
-	[functionName: string]: (
-		this: LocalizeCompilerContext<LocalizedData>,
-		functionArgments: string[],
-		localeName: string,
-		namespace?: string,
-	) => string;
-}
+export type LocalizeCompilerFunction<LocalizedData = string> = (
+	this: LocalizeCompilerContext<LocalizedData>,
+	functionArgments: string[],
+	localeName: string,
+	namespace?: string,
+) => string;
+
+export type LocalizeCompiler<LocalizedData = string> = {
+	[functionName: string]: LocalizeCompilerFunction<LocalizedData>;
+} | LocalizeCompilerFunction<LocalizedData>

@@ -1,8 +1,8 @@
 import webpack from 'webpack';
 import type WebpackError from 'webpack/lib/WebpackError.js';
-import * as walk from 'acorn-walk';
-import * as acorn from 'acorn';
-import type { SimpleCallExpression, VariableDeclaration } from 'estree';
+import type {
+	CallExpression, Expression, SimpleCallExpression,
+} from 'estree';
 import {
 	Webpack,
 	Compilation,
@@ -107,6 +107,8 @@ export const reportModuleError = (
 	}
 };
 
+const CustomTranslationCallTag = Symbol('CustomTranslationCallTag');
+
 export const onFunctionCall = (
 	normalModuleFactory: NormalModuleFactory,
 	functionNamesOrResolver: FunctionNamesOrResolver,
@@ -118,39 +120,61 @@ export const onFunctionCall = (
 	) => void,
 ) => {
 	const handler = (parser: WP5.javascript.JavascriptParser) => {
+		if (parser?.state?.module?.resource.includes('node_modules')) {
+			return;
+		}
+
 		const functionToNamespace: Record<string, string | undefined> = {};
+
 		if (Array.isArray(functionNamesOrResolver)) {
 			functionNamesOrResolver.forEach((functionName) => {
 				functionToNamespace[functionName] = undefined;
 			});
 		}
 
-		parser.hooks.program.tap(name, (ast) => {
-			if (typeof functionNamesOrResolver === 'function') {
-				walk.simple(ast as unknown as acorn.Node, {
-					VariableDeclaration: (node) => {
-						const result = functionNamesOrResolver(node as VariableDeclaration);
+		if (typeof functionNamesOrResolver === 'function') {
+			parser.hooks.preDeclarator
+				.tap(name, (node) => {
+					if (typeof functionNamesOrResolver === 'function') {
+						const result = functionNamesOrResolver(node);
 
 						if (result) {
 							functionToNamespace[result.functionName] = result.namespace;
 						}
-					},
-				});
-			}
-
-			walk.simple(ast as unknown as acorn.Node, {
-				CallExpression: (node) => {
-					if (node.callee.type === 'Identifier' && node.callee.name in functionToNamespace) {
-						callback(
-							node.callee.name,
-							parser,
-							node as SimpleCallExpression,
-							functionToNamespace[node.callee.name],
-						);
 					}
-				},
+
+					if (node.id.type === 'Identifier' && node.id.name in functionToNamespace) {
+						parser.tagVariable(node.id.name, CustomTranslationCallTag);
+
+						// clear for 'const i18nK = i18n.bind();'
+						// if any other specifier was used import module
+						toConstantDependency(parser, '""')(node.init);
+					}
+				});
+		}
+
+		const processCall = (node: Expression) => {
+			const nodeCall = node as unknown as CallExpression;
+
+			if (nodeCall.callee.type === 'Identifier' && nodeCall.callee.name in functionToNamespace) {
+				callback(
+					nodeCall.callee.name,
+					parser,
+					nodeCall as SimpleCallExpression,
+					functionToNamespace[nodeCall.callee.name],
+				);
+			}
+		};
+
+		if (Array.isArray(functionNamesOrResolver)) {
+			functionNamesOrResolver.forEach((functionName) => {
+				parser.hooks.call.for(functionName)
+					.tap(name, processCall);
 			});
-		});
+		}
+
+		parser.hooks.call.for(CustomTranslationCallTag)
+			.tap(name, processCall);
 	};
 
 	normalModuleFactory.hooks.parser

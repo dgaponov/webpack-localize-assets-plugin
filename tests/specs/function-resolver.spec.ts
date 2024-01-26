@@ -1,7 +1,8 @@
 import { testSuite, expect } from 'manten';
 import { build } from 'webpack-test-utils';
 import type {
-	CallExpression, Expression, VariableDeclaration,
+	CallExpression, Expression,
+	VariableDeclarator,
 } from 'estree';
 import { configureWebpack } from '../utils/configure-webpack.js';
 import WebpackLocalizeAssetsPlugin from '#webpack-localize-assets-plugin'; // eslint-disable-line import/no-unresolved
@@ -16,11 +17,11 @@ const getNamespaceFromBind = (expr: CallExpression) => {
 	throw new Error('Incorrect args count');
 };
 
-const functionResolver = (node: VariableDeclaration) => {
-	if (node.declarations.length === 1 && node.declarations[0].id.type === 'Identifier' && node.declarations[0].id.name.startsWith('i18n') && node.declarations[0].init && isI18nBind(node.declarations[0].init)) {
+const functionResolver = (declarator: VariableDeclarator) => {
+	if (declarator.id.type === 'Identifier' && declarator.id.name.startsWith('i18n') && declarator.init && isI18nBind(declarator.init)) {
 		return {
-			functionName: node.declarations[0].id.name,
-			namespace: getNamespaceFromBind(node.declarations[0].init),
+			functionName: declarator.id.name,
+			namespace: getNamespaceFromBind(declarator.init),
 		};
 	}
 };
@@ -52,16 +53,12 @@ export default testSuite(({ describe }) => {
 						new WebpackLocalizeAssetsPlugin({
 							locales: localesTest,
 							functionResolver,
-							localizeCompiler: new Proxy({ PLACEHOLDER_FN: () => '' }, {
-								get(_) {
-									return (callArguments, locale, namespace) => {
-										const parts = callArguments[0].replaceAll("'", '').split('::');
-										const key = parts.pop();
-										const fullKey = namespace ? `${namespace}:${key}` : key;
-										return `'${localesTest[locale][fullKey]}'`;
-									};
-								},
-							}),
+							localizeCompiler: (callArguments, locale, namespace) => {
+								const parts = callArguments[0].replaceAll("'", '').split('::');
+								const key = parts.pop();
+								const fullKey = namespace ? `${namespace}:${key}` : key;
+								return `'${localesTest[locale][fullKey]}'`;
+							},
 						}),
 					);
 				},
@@ -106,16 +103,12 @@ export default testSuite(({ describe }) => {
 						new WebpackLocalizeAssetsPlugin({
 							locales: localesTest,
 							functionResolver,
-							localizeCompiler: new Proxy({ PLACEHOLDER_FN: () => '' }, {
-								get(_) {
-									return (callArguments, locale, namespace) => {
-										const parts = callArguments[0].replaceAll("'", '').split('::');
-										const key = parts.pop();
-										const fullKey = namespace ? `${namespace}:${key}` : key;
-										return `'${localesTest[locale][fullKey]}'`;
-									};
-								},
-							}),
+							localizeCompiler: (callArguments, locale, namespace) => {
+								const parts = callArguments[0].replaceAll("'", '').split('::');
+								const key = parts.pop();
+								const fullKey = namespace ? `${namespace}:${key}` : key;
+								return `'${localesTest[locale][fullKey]}'`;
+							},
 						}),
 					);
 				},
