@@ -148,7 +148,7 @@ export const onFunctionCall = (
 
 						// clear for 'const i18nK = i18n.bind();'
 						// if any other specifier was used import module
-						toConstantDependency(parser, '""')(node.init);
+						// toConstantDependency(parser, '""')(node.init);
 					}
 				});
 		}
